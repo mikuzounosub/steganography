@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="ja" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoStego Cyber Lab - Lossless LSB Steganography & AES-256-GCM</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        cyber: {
+                            50: '#e6f9ff',
+                            100: '#b3f2ff',
+                            400: '#00d9ff',
+                            500: '#00b8e6',
+                            600: '#008ba8',
+                            900: '#051329',
+                            950: '#020b18',
+                        },
+                        neon: {
+                            emerald: '#10b981',
+                            cyan: '#06b6d4',
+                            purple: '#a855f7',
+                            amber: '#f59e0b'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #030712;
+            color: #f3f4f6;
+            background-image: 
+                radial-gradient(at 20% 20%, rgba(6, 182, 212, 0.08) 0px, transparent 50%),
+                radial-gradient(at 80% 80%, rgba(168, 85, 247, 0.08) 0px, transparent 50%);
+            background-attachment: fixed;
+        }
+        .glass-card {
+            background: rgba(17, 24, 39, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-input {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .glass-input:focus {
+            border-color: #06b6d4;
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.25);
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090d16;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1f2937;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #374151;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Header Navigation -->
+    <header class="border-b border-gray-800/80 sticky top-0 z-50 glass-card">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo -->
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-purple-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                        <i class="fa-solid fa-user-shield text-white text-lg"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <span class="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-teal-300 to-purple-400">
+                                CryptoStego Cyber Lab
+                            </span>
+                            <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-950/80 text-cyan-400 border border-cyan-800/50">v2.5 AES-GCM</span>
+                        </div>
+                        <p class="text-xs text-gray-400 hidden sm:block">無劣化 LSB ステガノグラフィー & AES-256-GCM 暗号化</p>
+                    </div>
+                </div>
+
+                <!-- Mode Switcher Tabs -->
+                <nav class="flex space-x-1 sm:space-x-2 bg-gray-900/90 p-1 rounded-xl border border-gray-800">
+                    <button id="tab-encode-btn" onclick="switchTab('encode')" class="flex items-center space-x-2 px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 bg-cyan-600 text-white shadow-md shadow-cyan-600/30">
+                        <i class="fa-solid fa-lock text-xs"></i>
+                        <span>埋め込み (Encode)</span>
+                    </button>
+                    <button id="tab-decode-btn" onclick="switchTab('decode')" class="flex items-center space-x-2 px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 transition-all duration-200">
+                        <i class="fa-solid fa-key text-xs"></i>
+                        <span>抽出 (Decode)</span>
+                    </button>
+                    <button id="tab-inspector-btn" onclick="switchTab('inspector')" class="flex items-center space-x-2 px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 transition-all duration-200">
+                        <i class="fa-solid fa-chart-line text-xs"></i>
+                        <span class="hidden md:inline">画質検証 (PSNR)</span>
+                        <span class="md:hidden">検証</span>
+                    </button>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- Notification Banner -->
+        <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+        <!-- TAB 1: ENCODE / EMBED -->
+        <section id="tab-encode" class="space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                <!-- Left Column: Image & Data Inputs -->
+                <div class="lg:col-span-7 space-y-6">
+
+                    <!-- Step 1: Cover Image Upload -->
+                    <div class="glass-card rounded-2xl p-5 sm:p-6 shadow-xl">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-base font-semibold text-gray-200 flex items-center space-x-2">
+                                <span class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs font-bold border border-cyan-500/30">1</span>
+                                <span>カバー画像の選択 (PNG / BMP / WebP)</span>
+                            </h2>
+                            <span class="text-xs text-gray-400 font-mono" id="cover-specs">画像未選択</span>
+                        </div>
+
+                        <!-- Dropzone -->
+                        <div id="cover-dropzone" onclick="document.getElementById('cover-input').click()" 
+                             class="border-2 border-dashed border-gray-700 hover:border-cyan-500/60 rounded-xl p-6 text-center cursor-pointer transition-all duration-200 bg-gray-900/40 hover:bg-gray-900/80 group">
+                            <input type="file" id="cover-input" accept="image/png, image/bmp, image/webp" class="hidden" onchange="handleCoverSelect(event)">
+                            <div id="cover-placeholder" class="space-y-3">
+                                <div class="w-14 h-14 mx-auto rounded-full bg-gray-800 group-hover:bg-cyan-950/60 flex items-center justify-center text-gray-400 group-hover:text-cyan-400 transition-colors">
+                                    <i class="fa-solid fa-cloud-arrow-up text-2xl"></i>
+                                </div>
+                                <p class="text-sm font-medium text-gray-300">ドラッグ＆ドロップ または <span class="text-cyan-400 underline underline-offset-4">ファイルを選択</span></p>
+                                <p class="text-xs text-gray-500">※無劣化保持のためPNG/BMP形式を推奨 (スマホ写真ライブラリ対応)</p>
+                            </div>
+
+                            <!-- Preview Box -->
+                            <div id="cover-preview-box" class="hidden space-y-3">
+                                <div class="relative max-h-64 overflow-hidden rounded-lg border border-gray-700 mx-auto max-w-md">
+                                    <img id="cover-img-element" class="w-full object-contain max-h-64 mx-auto" alt="Cover Preview">
+                                    <button onclick="event.stopPropagation(); resetCoverImage()" class="absolute top-2 right-2 bg-gray-900/80 hover:bg-red-900/80 text-gray-300 hover:text-white p-2 rounded-full text-xs transition-colors backdrop-blur-md">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
+                                <div id="cover-info-pills" class="flex flex-wrap justify-center gap-2 text-xs font-mono text-gray-300"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Secret Payload (Text or File) -->
+                    <div class="glass-card rounded-2xl p-5 sm:p-6 shadow-xl space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-base font-semibold text-gray-200 flex items-center space-x-2">
+                                <span class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs font-bold border border-cyan-500/30">2</span>
+                                <span>隠すデータ（テキストまたは秘密ファイル）</span>
+                            </h2>
+
+                            <!-- Type Toggle -->
+                            <div class="flex bg-gray-900 p-1 rounded-lg border border-gray-800 text-xs">
+                                <button id="type-text-btn" onclick="setPayloadType('text')" class="px-3 py-1 rounded-md text-cyan-400 bg-gray-800 font-medium transition-all">
+                                    <i class="fa-solid fa-message mr-1"></i>テキスト
+                                </button>
+                                <button id="type-file-btn" onclick="setPayloadType('file')" class="px-3 py-1 rounded-md text-gray-400 hover:text-gray-200 font-medium transition-all">
+                                    <i class="fa-solid fa-file-shield mr-1"></i>ファイル
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Text Input Mode -->
+                        <div id="payload-text-container" class="space-y-2">
+                            <textarea id="secret-text" rows="4" placeholder="ここに隠蔽したい秘密メッセージやパスワード、秘密鍵テキストを入力..." 
+                                      class="w-full glass-input rounded-xl p-3 text-sm text-gray-200 placeholder-gray-500 focus:outline-none resize-y font-sans" oninput="updateCapacityGauge()"></textarea>
+                        </div>
+
+                        <!-- File Input Mode -->
+                        <div id="payload-file-container" class="hidden space-y-2">
+                            <div onclick="document.getElementById('secret-file-input').click()" 
+                                 class="border border-dashed border-gray-700 hover:border-cyan-500/50 rounded-xl p-4 text-center cursor-pointer bg-gray-900/30 hover:bg-gray-900/60 transition-all">
+                                <input type="file" id="secret-file-input" class="hidden" onchange="handleSecretFileSelect(event)">
+                                <div id="secret-file-placeholder" class="flex items-center justify-center space-x-3 text-gray-400 py-2">
+                                    <i class="fa-solid fa-paperclip text-lg text-cyan-400"></i>
+                                    <span class="text-sm font-medium">任意のファイル（動画, 音声, 画像, PDF, ZIP等）を添付</span>
+                                </div>
+                                <div id="secret-file-details" class="hidden flex items-center justify-between bg-gray-800/80 p-2.5 rounded-lg border border-gray-700 text-xs font-mono text-cyan-300">
+                                    <span id="secret-file-name" class="truncate max-w-[200px] sm:max-w-[300px]"></span>
+                                    <span id="secret-file-size" class="text-gray-400"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Encryption Options -->
+                        <div class="pt-3 border-t border-gray-800/80 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <label class="flex items-center space-x-2 text-xs font-medium text-gray-300 cursor-pointer">
+                                    <input type="checkbox" id="encrypt-enable" checked onchange="toggleEncryptInputs()" class="rounded bg-gray-900 border-gray-700 text-cyan-500 focus:ring-cyan-500">
+                                    <span>AES-256-GCM 暗号化を有効化 (推奨)</span>
+                                </label>
+                                <span class="text-[10px] text-emerald-400 font-mono bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/40">PBKDF2 100,000 Key Iterations</span>
+                            </div>
+
+                            <div id="passcode-wrapper" class="relative">
+                                <i class="fa-solid fa-key absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs"></i>
+                                <input type="password" id="passcode-input" placeholder="復号パスフレーズを設定..." 
+                                       class="w-full glass-input rounded-xl pl-9 pr-10 py-2.5 text-sm text-gray-200 placeholder-gray-500 focus:outline-none font-mono" oninput="updateCapacityGauge()">
+                                <button type="button" onclick="togglePasswordVisibility('passcode-input', 'pass-eye')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+                                    <i id="pass-eye" class="fa-solid fa-eye text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Right Column: LSB Engine & Filename Stealth Settings -->
+                <div class="lg:col-span-5 space-y-6">
+
+                    <!-- Capacity & Bit Depth Tuning -->
+                    <div class="glass-card rounded-2xl p-5 sm:p-6 shadow-xl space-y-5">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-base font-semibold text-gray-200 flex items-center space-x-2">
+                                <span class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs font-bold border border-cyan-500/30">3</span>
+                                <span>LSB 隠蔽設定と容量メーター</span>
+                            </h2>
+                        </div>
+
+                        <!-- Bit Depth Slider -->
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-gray-300 font-medium">1ピクセルあたりの変更ビット数 (LSB Depth):</span>
+                                <span id="lsb-bit-display" class="font-mono text-cyan-400 font-bold">1-bit (最高画質・無劣化)</span>
+                            </div>
+                            <input type="range" id="lsb-bits" min="1" max="4" value="1" step="1" oninput="onLsbBitsChange()" class="w-full accent-cyan-500 bg-gray-800 h-2 rounded-lg cursor-pointer">
+                            <div class="flex justify-between text-[10px] text-gray-500 font-mono">
+                                <span>1 bit (目視不可能)</span>
+                                <span>2 bit</span>
+                                <span>3 bit</span>
+                                <span>4 bit (大容量)</span>
+                            </div>
+                        </div>
+
+                        <!-- Realtime Capacity Gauge -->
+                        <div class="bg-gray-900/80 p-4 rounded-xl border border-gray-800 space-y-2">
+                            <div class="flex justify-between text-xs font-mono">
+                                <span class="text-gray-400">ペイロード使用容量:</span>
+                                <span id="capacity-text" class="text-cyan-300">0 B / 0 B (0%)</span>
+                            </div>
+                            <div class="w-full bg-gray-800 h-3 rounded-full overflow-hidden p-0.5 border border-gray-700">
+                                <div id="capacity-bar" class="bg-gradient-to-r from-cyan-500 to-emerald-400 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                            <div id="capacity-warning" class="hidden text-[11px] text-amber-400 flex items-center space-x-1 pt-1">
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                                <span>容量オーバーです。解像度を上げるかLSBビット数を増やしてください。</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- User Requested: Advanced Stealth / Camouflage Filename Options -->
+                    <div class="glass-card rounded-2xl p-5 sm:p-6 shadow-xl space-y-4 border-l-4 border-l-cyan-500">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-base font-semibold text-gray-200 flex items-center space-x-2">
+                                <span class="w-6 h-6 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center text-xs font-bold border border-purple-500/30">4</span>
+                                <span>保存ファイル名のカモフラージュ設定</span>
+                            </h2>
+                        </div>
+                        <p class="text-xs text-gray-400">
+                            処理済み画像であることが第三者に検知されないよう、カメラの保存名や自然な写真名で偽装保存できます。
+                        </p>
+
+                        <!-- Radio Options -->
+                        <div class="space-y-2">
+                            <!-- Stealth Mode (Camouflage) -->
+                            <label class="flex items-start space-x-3 p-3 rounded-xl border border-gray-800 hover:border-gray-700 bg-gray-900/40 cursor-pointer transition-all">
+                                <input type="radio" name="naming-mode" value="stealth" checked onchange="updateFilenamePreview()" class="mt-0.5 text-cyan-500 focus:ring-cyan-500">
+                                <div>
+                                    <div class="text-xs font-semibold text-cyan-300 flex items-center space-x-2">
+                                        <i class="fa-solid fa-user-ninja text-cyan-400"></i>
+                                        <span>ステルス偽装モード (推奨・痕跡なし)</span>
+                                    </div>
+                                    <p class="text-[11px] text-gray-400 mt-0.5">「stego」などの文字列を含めず、標準のスマホ写真やダウンロード名で保存します。</p>
+                                </div>
+                            </label>
+
+                            <!-- Identifiable Mode (stego_) -->
+                            <label class="flex items-start space-x-3 p-3 rounded-xl border border-gray-800 hover:border-gray-700 bg-gray-900/40 cursor-pointer transition-all">
+                                <input type="radio" name="naming-mode" value="identifiable" onchange="updateFilenamePreview()" class="mt-0.5 text-cyan-500 focus:ring-cyan-500">
+                                <div>
+                                    <div class="text-xs font-semibold text-gray-300 flex items-center space-x-2">
+                                        <i class="fa-solid fa-tag text-purple-400"></i>
+                                        <span>識別用モード (`stego_` プレフィックス付与)</span>
+                                    </div>
+                                    <p class="text-[11px] text-gray-400 mt-0.5">自分でステガノグラフィー画像だと識別できるように `stego_` を付与します。</p>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Stealth Presets Quick Selector -->
+                        <div id="stealth-presets-wrapper" class="space-y-2 pt-2 border-t border-gray-800">
+                            <span class="text-xs text-gray-400 block font-medium">プリセット選択 / カスタム入力:</span>
+                            <div class="grid grid-cols-2 gap-2 text-xs">
+                                <button type="button" onclick="setFilenamePreset('camera_img')" class="px-2.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 font-mono text-left truncate transition-colors">
+                                    📸 IMG_YYYYMMDD...
+                                </button>
+                                <button type="button" onclick="setFilenamePreset('camera_dsc')" class="px-2.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 font-mono text-left truncate transition-colors">
+                                    📷 DSC_04821...
+                                </button>
+                                <button type="button" onclick="setFilenamePreset('original')" class="px-2.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 font-mono text-left truncate transition-colors">
+                                    🖼️ 元画像と同名
+                                </button>
+                                <button type="button" onclick="setFilenamePreset('custom')" class="px-2.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 font-mono text-left truncate transition-colors">
+                                    ✏️ 任意指定
+                                </button>
+                            </div>
+
+                            <!-- Custom Input Field -->
+                            <div id="custom-filename-field" class="pt-1">
+                                <input type="text" id="custom-filename-input" placeholder="保存ファイル名 (例: vacation_photo)" 
+                                       class="w-full glass-input rounded-lg px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none" oninput="updateFilenamePreview()">
+                            </div>
+                        </div>
+
+                        <!-- Live Output Filename Preview Tag -->
+                        <div class="p-2.5 rounded-xl bg-gray-900/90 border border-cyan-800/50 flex items-center justify-between text-xs">
+                            <span class="text-gray-400">出力ファイル名予告:</span>
+                            <span id="final-filename-preview" class="font-mono text-cyan-300 font-semibold truncate max-w-[200px]">IMG_20261025_142055.png</span>
+                        </div>
+                    </div>
+
+                    <!-- Process Action Button -->
+                    <button id="encode-process-btn" onclick="executeEncoding()" disabled 
+                            class="w-full py-3.5 px-6 rounded-xl font-bold text-sm bg-gradient-to-r from-cyan-500 to-teal-400 text-gray-950 hover:from-cyan-400 hover:to-teal-300 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-cyan-500/20 transition-all flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-shield-halved text-base"></i>
+                        <span>データを暗号化 & 画像に埋め込む</span>
+                    </button>
+
+                    <!-- Export / Download Result Box -->
+                    <div id="encode-result-card" class="hidden glass-card rounded-2xl p-5 border border-emerald-500/40 bg-emerald-950/20 space-y-4">
+                        <div class="flex items-center space-x-3 text-emerald-400">
+                            <i class="fa-solid fa-circle-check text-xl"></i>
+                            <div>
+                                <h3 class="font-bold text-sm">埋め込み処理が正常に完了しました！</h3>
+                                <p class="text-xs text-emerald-300/80">画質劣化なし (無劣化 PNG) でデータが隠蔽されました。</p>
+                            </div>
+                        </div>
+                        <a id="stego-download-link" download="stego.png" class="w-full py-3 px-4 rounded-xl font-bold text-xs bg-emerald-500 hover:bg-emerald-400 text-gray-950 flex items-center justify-center space-x-2 transition-colors shadow-md shadow-emerald-500/20">
+                            <i class="fa-solid fa-download text-sm"></i>
+                            <span id="download-btn-label">ステガノグラフィー画像を保存</span>
+                        </a>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+
+        <!-- TAB 2: DECODE / EXTRACT -->
+        <section id="tab-decode" class="hidden space-y-6 max-w-4xl mx-auto">
+            <div class="glass-card rounded-2xl p-6 sm:p-8 shadow-xl space-y-6">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-100 flex items-center space-x-2">
+                        <i class="fa-solid fa-key text-cyan-400"></i>
+                        <span>ステガノグラフィー画像の解析 & 復号抽出</span>
+                    </h2>
+                    <p class="text-xs text-gray-400 mt-1">隠蔽データが含まれた画像をアップロードし、暗号化した際のパスフレーズを入力してください。</p>
+                </div>
+
+                <!-- Stego Image Upload Dropzone -->
+                <div id="stego-dropzone" onclick="document.getElementById('stego-input').click()" 
+                     class="border-2 border-dashed border-gray-700 hover:border-cyan-500/60 rounded-xl p-8 text-center cursor-pointer transition-all bg-gray-900/40 hover:bg-gray-900/80 group">
+                    <input type="file" id="stego-input" accept="image/png, image/bmp, image/webp" class="hidden" onchange="handleStegoSelect(event)">
+                    
+                    <div id="stego-placeholder" class="space-y-3">
+                        <div class="w-14 h-14 mx-auto rounded-full bg-gray-800 group-hover:bg-cyan-950/60 flex items-center justify-center text-gray-400 group-hover:text-cyan-400 transition-colors">
+                            <i class="fa-solid fa-image text-2xl"></i>
+                        </div>
+                        <p class="text-sm font-medium text-gray-300">ステガノグラフィー画像を選択（ドラッグ＆ドロップ対応）</p>
+                    </div>
+
+                    <div id="stego-preview-box" class="hidden space-y-3">
+                        <img id="stego-img-element" class="max-h-56 mx-auto rounded-lg border border-gray-700" alt="Stego Preview">
+                        <p id="stego-file-specs" class="text-xs font-mono text-cyan-400"></p>
+                    </div>
+                </div>
+
+                <!-- Passcode Input -->
+                <div class="space-y-2">
+                    <label class="block text-xs font-medium text-gray-300">復号用パスフレーズ (暗号化した場合):</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs"></i>
+                        <input type="password" id="decode-passcode" placeholder="パスフレーズを入力..." 
+                               class="w-full glass-input rounded-xl pl-9 pr-10 py-2.5 text-sm text-gray-200 placeholder-gray-500 focus:outline-none font-mono">
+                        <button type="button" onclick="togglePasswordVisibility('decode-passcode', 'decode-pass-eye')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+                            <i id="decode-pass-eye" class="fa-solid fa-eye text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Action Button -->
+                <button id="decode-process-btn" onclick="executeDecoding()" disabled 
+                        class="w-full py-3.5 px-6 rounded-xl font-bold text-sm bg-gradient-to-r from-purple-600 to-cyan-500 text-white hover:from-purple-500 hover:to-cyan-400 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-purple-600/20 transition-all flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-unlock-keyhole"></i>
+                    <span>隠蔽データを抽出・復号化する</span>
+                </button>
+
+                <!-- Result Section -->
+                <div id="decode-result-box" class="hidden pt-4 border-t border-gray-800 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-semibold text-emerald-400 flex items-center space-x-2">
+                            <i class="fa-solid fa-circle-check"></i>
+                            <span>抽出・復号成功！</span>
+                        </span>
+                        <span id="decoded-type-badge" class="text-xs font-mono bg-cyan-950 text-cyan-400 px-2.5 py-1 rounded-full border border-cyan-800"></span>
+                    </div>
+
+                    <!-- In-App Viewer / Media Player Container -->
+                    <div id="decoded-content-viewer" class="bg-gray-950 p-4 rounded-xl border border-gray-800 min-h-[100px] flex items-center justify-center">
+                        <!-- Content dynamically rendered here -->
+                    </div>
+
+                    <!-- Direct Download Button for Extracted Files -->
+                    <a id="decoded-download-btn" class="hidden w-full py-3 px-4 rounded-xl font-bold text-xs bg-cyan-500 hover:bg-cyan-400 text-gray-950 flex items-center justify-center space-x-2 transition-colors">
+                        <i class="fa-solid fa-file-arrow-down"></i>
+                        <span id="decoded-download-label">抽出ファイルをダウンロード</span>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- TAB 3: QUALITY & PSNR INSPECTOR -->
+        <section id="tab-inspector" class="hidden space-y-6 max-w-5xl mx-auto">
+            <div class="glass-card rounded-2xl p-6 sm:p-8 shadow-xl space-y-6">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-100 flex items-center space-x-2">
+                        <i class="fa-solid fa-chart-simple text-cyan-400"></i>
+                        <span>画質検証 & PSNR (ピーク信号対雑音比) 分析</span>
+                    </h2>
+                    <p class="text-xs text-gray-400 mt-1">
+                        元画像と処理後画像をピクセル単位で比較し、目視による差分のなさを科学的数値 (PSNR / MSE) で検証します。
+                    </p>
+                </div>
+
+                <!-- Inspector Metrics Overview Grid -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div class="bg-gray-900/80 p-4 rounded-xl border border-gray-800 text-center">
+                        <span class="text-[11px] text-gray-400 font-medium block">PSNR (画質品質)</span>
+                        <span id="psnr-value" class="text-xl font-bold font-mono text-cyan-400 mt-1 block">-- dB</span>
+                        <span id="psnr-grade" class="text-[10px] text-gray-500 mt-0.5 block">未検証</span>
+                    </div>
+                    <div class="bg-gray-900/80 p-4 rounded-xl border border-gray-800 text-center">
+                        <span class="text-[11px] text-gray-400 font-medium block">MSE (平均二乗誤差)</span>
+                        <span id="mse-value" class="text-xl font-bold font-mono text-purple-400 mt-1 block">--</span>
+                        <span class="text-[10px] text-gray-500 mt-0.5 block">0に近いほど完全一致</span>
+                    </div>
+                    <div class="bg-gray-900/80 p-4 rounded-xl border border-gray-800 text-center">
+                        <span class="text-[11px] text-gray-400 font-medium block">変更ピクセル割合</span>
+                        <span id="diff-pixel-ratio" class="text-xl font-bold font-mono text-emerald-400 mt-1 block">-- %</span>
+                        <span id="diff-pixel-count" class="text-[10px] text-gray-500 mt-0.5 block">0 px</span>
+                    </div>
+                    <div class="bg-gray-900/80 p-4 rounded-xl border border-gray-800 text-center">
+                        <span class="text-[11px] text-gray-400 font-medium block">1ピクセルあたりの密度</span>
+                        <span id="bpp-value" class="text-xl font-bold font-mono text-amber-400 mt-1 block">-- bpp</span>
+                        <span class="text-[10px] text-gray-500 mt-0.5 block">bits per pixel</span>
+                    </div>
+                </div>
+
+                <!-- Amplified Visual Difference Map -->
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-semibold text-gray-200">20倍強調 差分マップ (Visual Difference Canvas):</h3>
+                        <span class="text-[11px] text-gray-400">※人間の目では視認不能なLSB変更箇所を可視化</span>
+                    </div>
+                    <div class="bg-gray-950 p-4 rounded-xl border border-gray-800 flex justify-center items-center min-h-[220px]">
+                        <canvas id="diff-canvas" class="max-w-full max-h-[350px] object-contain rounded border border-gray-800"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-gray-800/80 py-4 mt-8 glass-card">
+        <div class="max-w-7xl mx-auto px-4 text-center text-xs text-gray-500 flex flex-col sm:flex-row justify-between items-center space-y-2 sm:space-y-0">
+            <div>
+                <span>CryptoStego Cyber Lab &copy; 2026 - Client-Side Lossless LSB & AES-GCM Engine</span>
+            </div>
+            <div class="flex space-x-4">
+                <span><i class="fa-solid fa-lock text-cyan-500 mr-1"></i>Web Crypto API</span>
+                <span><i class="fa-solid fa-bolt text-emerald-500 mr-1"></i>Zero Server Uploads</span>
+            </div>
+        </div>
+    </footer>
+
+
+    <!-- JAVASCRIPT CORE ENGINE -->
+    <script>
+        /* ==========================================================================
+           STATE & GLOBAL VARIABLES
+           ========================================================================== */
+        const MAGIC_HEADER = new Uint8Array([0x53, 0x54, 0x47, 0x31]); // "STG1"
+
+        let state = {
+            activeTab: 'encode',
+            coverImage: null,        // HTMLImageElement
+            coverCanvas: null,       // Offscreen Canvas
+            coverCtx: null,
+            coverFileName: 'cover',
+            payloadType: 'text',     // 'text' | 'file'
+            secretFile: null,        // File object if attached
+            lsbBits: 1,
+            stegoImage: null,        // HTMLImageElement for decoding
+            stegoFileName: '',
+            encodedBlobUrl: null,
+            decodedResult: null,
+            filenamePreset: 'camera_img' // 'camera_img' | 'camera_dsc' | 'original' | 'custom'
+        };
+
+        /* ==========================================================================
+           TAB SWITCHING LOGIC
+           ========================================================================== */
+        function switchTab(tabName) {
+            state.activeTab = tabName;
+            ['encode', 'decode', 'inspector'].forEach(t => {
+                const sec = document.getElementById(`tab-${t}`);
+                const btn = document.getElementById(`tab-${t}-btn`);
+                if (t === tabName) {
+                    sec.classList.remove('hidden');
+                    btn.className = "flex items-center space-x-2 px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 bg-cyan-600 text-white shadow-md shadow-cyan-600/30";
+                } else {
+                    sec.classList.add('hidden');
+                    btn.className = "flex items-center space-x-2 px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 transition-all duration-200";
+                }
+            });
+        }
+
+        /* ==========================================================================
+           HELPERS & NOTIFICATIONS
+           ========================================================================== */
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const colors = {
+                info: 'bg-cyan-900/90 border-cyan-500 text-cyan-200',
+                success: 'bg-emerald-900/90 border-emerald-500 text-emerald-200',
+                error: 'bg-red-900/90 border-red-500 text-red-200',
+                warning: 'bg-amber-900/90 border-amber-500 text-amber-200'
+            };
+            toast.className = `px-4 py-3 rounded-xl border shadow-xl text-xs font-medium backdrop-blur-md transition-all duration-300 transform translate-y-2 pointer-events-auto flex items-center space-x-2 ${colors[type] || colors.info}`;
+            
+            const icon = type === 'success' ? 'fa-circle-check' : type === 'error' ? 'fa-circle-xmark' : 'fa-circle-info';
+            toast.innerHTML = `<i class="fa-solid ${icon}"></i> <span>${message}</span>`;
+            
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-4');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+
+        function togglePasswordVisibility(inputId, eyeId) {
+            const input = document.getElementById(inputId);
+            const eye = document.getElementById(eyeId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                eye.className = 'fa-solid fa-eye-slash text-xs';
+            } else {
+                input.type = 'password';
+                eye.className = 'fa-solid fa-eye text-xs';
+            }
+        }
+
+        /* ==========================================================================
+           STEP 1: COVER IMAGE HANDLING
+           ========================================================================== */
+        function handleCoverSelect(e) {
+            const file = e.target.files[0];
+            if (file) loadCoverFile(file);
+        }
+
+        // Drag & drop handlers for cover image
+        const coverZone = document.getElementById('cover-dropzone');
+        coverZone.addEventListener('dragover', (e) => { e.preventDefault(); coverZone.classList.add('border-cyan-500'); });
+        coverZone.addEventListener('dragleave', () => { coverZone.classList.remove('border-cyan-500'); });
+        coverZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            coverZone.classList.remove('border-cyan-500');
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                loadCoverFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        function loadCoverFile(file) {
+            if (!file.type.match(/image\/(png|bmp|webp|jpeg)/)) {
+                showToast('可逆圧縮（PNG / BMP）推奨です。JPEGは圧縮時にノイズが発生する可能性があります。', 'warning');
+            }
+
+            state.coverFileName = file.name.replace(/\.[^/.]+$/, "");
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                const img = new Image();
+                img.onload = function () {
+                    state.coverImage = img;
+                    
+                    // Prepare canvas
+                    state.coverCanvas = document.createElement('canvas');
+                    state.coverCanvas.width = img.width;
+                    state.coverCanvas.height = img.height;
+                    state.coverCtx = state.coverCanvas.getContext('2d');
+                    
+                    // Draw original image to canvas
+                    state.coverCtx.drawImage(img, 0, 0);
+
+                    // Update UI
+                    document.getElementById('cover-placeholder').classList.add('hidden');
+                    document.getElementById('cover-preview-box').classList.remove('hidden');
+                    document.getElementById('cover-img-element').src = event.target.result;
+
+                    // Specs summary
+                    const mp = ((img.width * img.height) / 1000000).toFixed(2);
+                    document.getElementById('cover-specs').textContent = `${img.width} × ${img.height} (${mp} MP)`;
+                    
+                    document.getElementById('cover-info-pills').innerHTML = `
+                        <span class="bg-gray-800 px-2.5 py-1 rounded-md border border-gray-700">解像度: ${img.width}×${img.height}</span>
+                        <span class="bg-gray-800 px-2.5 py-1 rounded-md border border-gray-700">ファイルサイズ: ${formatBytes(file.size)}</span>
+                    `;
+
+                    updateCapacityGauge();
+                    updateFilenamePreview();
+                    validateEncodeForm();
+                    showToast('カバー画像を取り込みました', 'success');
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function resetCoverImage() {
+            state.coverImage = null;
+            state.coverCanvas = null;
+            document.getElementById('cover-input').value = '';
+            document.getElementById('cover-placeholder').classList.remove('hidden');
+            document.getElementById('cover-preview-box').classList.add('hidden');
+            document.getElementById('cover-specs').textContent = '画像未選択';
+            updateCapacityGauge();
+            validateEncodeForm();
+        }
+
+        /* ==========================================================================
+           STEP 2: SECRET PAYLOAD HANDLING
+           ========================================================================== */
+        function setPayloadType(type) {
+            state.payloadType = type;
+            if (type === 'text') {
+                document.getElementById('type-text-btn').className = 'px-3 py-1 rounded-md text-cyan-400 bg-gray-800 font-medium transition-all';
+                document.getElementById('type-file-btn').className = 'px-3 py-1 rounded-md text-gray-400 hover:text-gray-200 font-medium transition-all';
+                document.getElementById('payload-text-container').classList.remove('hidden');
+                document.getElementById('payload-file-container').classList.add('hidden');
+            } else {
+                document.getElementById('type-file-btn').className = 'px-3 py-1 rounded-md text-cyan-400 bg-gray-800 font-medium transition-all';
+                document.getElementById('type-text-btn').className = 'px-3 py-1 rounded-md text-gray-400 hover:text-gray-200 font-medium transition-all';
+                document.getElementById('payload-file-container').classList.remove('hidden');
+                document.getElementById('payload-text-container').classList.add('hidden');
+            }
+            updateCapacityGauge();
+            validateEncodeForm();
+        }
+
+        function handleSecretFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                state.secretFile = file;
+                document.getElementById('secret-file-placeholder').classList.add('hidden');
+                document.getElementById('secret-file-details').classList.remove('hidden');
+                document.getElementById('secret-file-name').textContent = file.name;
+                document.getElementById('secret-file-size').textContent = formatBytes(file.size);
+                updateCapacityGauge();
+                validateEncodeForm();
+            }
+        }
+
+        function toggleEncryptInputs() {
+            const enabled = document.getElementById('encrypt-enable').checked;
+            document.getElementById('passcode-wrapper').style.opacity = enabled ? '1' : '0.4';
+            document.getElementById('passcode-input').disabled = !enabled;
+            validateEncodeForm();
+        }
+
+        /* ==========================================================================
+           STEP 3: LSB CAPACITY GAUGE & BIT TUNING
+           ========================================================================== */
+        function onLsbBitsChange() {
+            const val = parseInt(document.getElementById('lsb-bits').value);
+            state.lsbBits = val;
+            const labels = {
+                1: '1-bit (最高画質・視覚的差分なし)',
+                2: '2-bit (高画質・バランス)',
+                3: '3-bit (中容量)',
+                4: '4-bit (最大容量)'
+            };
+            document.getElementById('lsb-bit-display').textContent = labels[val];
+            updateCapacityGauge();
+        }
+
+        function calculateMaxCapacity() {
+            if (!state.coverImage) return 0;
+            const totalPixels = state.coverImage.width * state.coverImage.height;
+            // 3 RGB channels per pixel (Alpha channel ignored for stability)
+            const availableBits = totalPixels * 3 * state.lsbBits;
+            return Math.floor(availableBits / 8); // Bytes
+        }
+
+        function getPayloadByteCount() {
+            if (state.payloadType === 'text') {
+                const text = document.getElementById('secret-text').value;
+                return new TextEncoder().encode(text).length;
+            } else {
+                return state.secretFile ? state.secretFile.size : 0;
+            }
+        }
+
+        function updateCapacityGauge() {
+            const maxCap = calculateMaxCapacity();
+            const payloadBytes = getPayloadByteCount();
+            
+            // Overhead approximation (Magic 4B + LsbBits 1B + EncryptFlag 1B + Salt 16B + IV 12B + MetaLen 2B + PayloadLen 4B + Meta JSON ~100B)
+            const estimatedOverhead = 150;
+            const totalRequired = payloadBytes > 0 ? payloadBytes + estimatedOverhead : 0;
+
+            const textElem = document.getElementById('capacity-text');
+            const barElem = document.getElementById('capacity-bar');
+            const warnElem = document.getElementById('capacity-warning');
+
+            if (maxCap === 0) {
+                textElem.textContent = '0 B / 0 B (0%)';
+                barElem.style.width = '0%';
+                warnElem.classList.add('hidden');
+                return;
+            }
+
+            const pct = Math.min(100, (totalRequired / maxCap) * 100).toFixed(1);
+            textElem.textContent = `${formatBytes(totalRequired)} / ${formatBytes(maxCap)} (${pct}%)`;
+            barElem.style.width = `${pct}%`;
+
+            if (totalRequired > maxCap) {
+                barElem.className = 'bg-red-500 h-full rounded-full transition-all duration-300';
+                warnElem.classList.remove('hidden');
+            } else {
+                barElem.className = 'bg-gradient-to-r from-cyan-500 to-emerald-400 h-full rounded-full transition-all duration-300';
+                warnElem.classList.add('hidden');
+            }
+
+            validateEncodeForm();
+        }
+
+        /* ==========================================================================
+           STEP 4: USER-REQUESTED ADVANCED FILENAME STEALTH & CAMOUFLAGE OPTIONS
+           ========================================================================== */
+        function setFilenamePreset(presetKey) {
+            state.filenamePreset = presetKey;
+            const customField = document.getElementById('custom-filename-field');
+            if (presetKey === 'custom') {
+                customField.classList.remove('hidden');
+            } else {
+                customField.classList.add('hidden');
+            }
+            updateFilenamePreview();
+        }
+
+        function generateStealthFilename() {
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const hh = String(now.getHours()).padStart(2, '0');
+            const min = String(now.getMinutes()).padStart(2, '0');
+            const ss = String(now.getSeconds()).padStart(2, '0');
+
+            const mode = document.querySelector('input[name="naming-mode"]:checked').value;
+
+            let baseName = "";
+
+            if (mode === 'identifiable') {
+                baseName = `stego_${state.coverFileName || 'image'}`;
+            } else {
+                // Stealth Mode presets
+                switch (state.filenamePreset) {
+                    case 'camera_img':
+                        baseName = `IMG_${yyyy}${mm}${dd}_${hh}${min}${ss}`;
+                        break;
+                    case 'camera_dsc':
+                        const rndNum = Math.floor(10000 + Math.random() * 90000);
+                        baseName = `DSC_${rndNum}`;
+                        break;
+                    case 'original':
+                        baseName = state.coverFileName || 'photo_original';
+                        break;
+                    case 'custom':
+                        const inputVal = document.getElementById('custom-filename-input').value.trim();
+                        baseName = inputVal || 'vacation_snapshot';
+                        break;
+                    default:
+                        baseName = `IMG_${yyyy}${mm}${dd}_${hh}${min}${ss}`;
+                }
+            }
+
+            // Always output lossless PNG
+            return `${baseName}.png`;
+        }
+
+        function updateFilenamePreview() {
+            const filename = generateStealthFilename();
+            document.getElementById('final-filename-preview').textContent = filename;
+            const downloadLink = document.getElementById('stego-download-link');
+            if (downloadLink) {
+                downloadLink.download = filename;
+            }
+            document.getElementById('download-btn-label').textContent = `「${filename}」をダウンロード`;
+        }
+
+        function validateEncodeForm() {
+            const btn = document.getElementById('encode-process-btn');
+            const hasCover = !!state.coverImage;
+            const payloadBytes = getPayloadByteCount();
+            const maxCap = calculateMaxCapacity();
+            const isEnc = document.getElementById('encrypt-enable').checked;
+            const pass = document.getElementById('passcode-input').value;
+
+            const isValid = hasCover && payloadBytes > 0 && payloadBytes + 150 <= maxCap && (!isEnc || pass.length > 0);
+            btn.disabled = !isValid;
+        }
+
+        /* ==========================================================================
+           AES-256-GCM + PBKDF2 CRYPTO ENGINE
+           ========================================================================== */
+        async function deriveKey(passcode, salt) {
+            const enc = new TextEncoder();
+            const keyMaterial = await crypto.subtle.importKey(
+                'raw',
+                enc.encode(passcode),
+                { name: 'PBKDF2' },
+                false,
+                ['deriveKey']
+            );
+
+            return await crypto.subtle.deriveKey(
+                {
+                    name: 'PBKDF2',
+                    salt: salt,
+                    iterations: 100000,
+                    hash: 'SHA-256'
+                },
+                keyMaterial,
+                { name: 'AES-GCM', length: 256 },
+                false,
+                ['encrypt', 'decrypt']
+            );
+        }
+
+        async function encryptData(uint8Array, passcode) {
+            const salt = crypto.getRandomValues(new Uint8Array(16));
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const key = await deriveKey(passcode, salt);
+
+            const ciphertextBuffer = await crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv: iv },
+                key,
+                uint8Array
+            );
+
+            return {
+                salt,
+                iv,
+                ciphertext: new Uint8Array(ciphertextBuffer)
+            };
+        }
+
+        async function decryptData(ciphertext, passcode, salt, iv) {
+            const key = await deriveKey(passcode, salt);
+            const decryptedBuffer = await crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv: iv },
+                key,
+                ciphertext
+            );
+            return new Uint8Array(decryptedBuffer);
+        }
+
+        /* ==========================================================================
+           LSB ENCODING ENGINE
+           ========================================================================== */
+        async function executeEncoding() {
+            const btn = document.getElementById('encode-process-btn');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>処理中...</span>`;
+
+            try {
+                // 1. Prepare raw secret payload bytes
+                let payloadBytes;
+                let metaObj = {};
+
+                if (state.payloadType === 'text') {
+                    const textVal = document.getElementById('secret-text').value;
+                    payloadBytes = new TextEncoder().encode(textVal);
+                    metaObj = { isText: true, filename: 'secret.txt', mimeType: 'text/plain' };
+                } else {
+                    const arrayBuffer = await state.secretFile.arrayBuffer();
+                    payloadBytes = new Uint8Array(arrayBuffer);
+                    metaObj = {
+                        isText: false,
+                        filename: state.secretFile.name,
+                        mimeType: state.secretFile.type || 'application/octet-stream'
+                    };
+                }
+
+                // 2. Encryption (if enabled)
+                const isEncrypted = document.getElementById('encrypt-enable').checked;
+                let salt = new Uint8Array(0);
+                let iv = new Uint8Array(0);
+                let finalPayload = payloadBytes;
+
+                if (isEncrypted) {
+                    const passcode = document.getElementById('passcode-input').value;
+                    const encRes = await encryptData(payloadBytes, passcode);
+                    salt = encRes.salt;
+                    iv = encRes.iv;
+                    finalPayload = encRes.ciphertext;
+                }
+
+                // 3. Metadata encoding
+                const metaJsonBytes = new TextEncoder().encode(JSON.stringify(metaObj));
+                const metaLen = metaJsonBytes.length; // Uint16
+                const payloadLen = finalPayload.length; // Uint32
+
+                // 4. Construct complete binary stream
+                // [Magic(4)] [LSBBits(1)] [IsEncrypted(1)] [Salt(16 if enc)] [IV(12 if enc)] [MetaLen(2)] [PayloadLen(4)] [MetaBytes] [PayloadBytes]
+                const totalHeaderLen = 4 + 1 + 1 + (isEncrypted ? 16 + 12 : 0) + 2 + 4 + metaLen;
+                const fullStream = new Uint8Array(totalHeaderLen + payloadLen);
+
+                let offset = 0;
+                fullStream.set(MAGIC_HEADER, offset); offset += 4;
+                fullStream[offset++] = state.lsbBits;
+                fullStream[offset++] = isEncrypted ? 1 : 0;
+
+                if (isEncrypted) {
+                    fullStream.set(salt, offset); offset += 16;
+                    fullStream.set(iv, offset); offset += 12;
+                }
+
+                // Uint16 Big Endian for MetaLen
+                fullStream[offset++] = (metaLen >> 8) & 0xFF;
+                fullStream[offset++] = metaLen & 0xFF;
+
+                // Uint32 Big Endian for PayloadLen
+                fullStream[offset++] = (payloadLen >> 24) & 0xFF;
+                fullStream[offset++] = (payloadLen >> 16) & 0xFF;
+                fullStream[offset++] = (payloadLen >> 8) & 0xFF;
+                fullStream[offset++] = payloadLen & 0xFF;
+
+                fullStream.set(metaJsonBytes, offset); offset += metaLen;
+                fullStream.set(finalPayload, offset); offset += payloadLen;
+
+                // 5. Embed fullStream into Canvas RGB ImageData LSBs
+                const width = state.coverCanvas.width;
+                const height = state.coverCanvas.height;
+                const imgData = state.coverCtx.getImageData(0, 0, width, height);
+                const pixels = imgData.data;
+
+                let streamBitIdx = 0;
+                const totalBitsToEmbed = fullStream.length * 8;
+
+                const lsbDepth = state.lsbBits;
+                const bitMask = (1 << lsbDepth) - 1; // e.g. for 1 bit -> 0x01, 2 bits -> 0x03
+                const clearMask = (~bitMask) & 0xFF;
+
+                for (let i = 0; i < pixels.length; i += 4) {
+                    if (streamBitIdx >= totalBitsToEmbed) break;
+
+                    // Loop through R, G, B channels (index 0, 1, 2)
+                    for (let c = 0; c < 3; c++) {
+                        if (streamBitIdx >= totalBitsToEmbed) break;
+
+                        // Extract bits from fullStream
+                        let bitsVal = 0;
+                        for (let b = 0; b < lsbDepth; b++) {
+                            if (streamBitIdx < totalBitsToEmbed) {
+                                const byteIdx = Math.floor(streamBitIdx / 8);
+                                const bitPos = 7 - (streamBitIdx % 8); // MSB to LSB
+                                const bit = (fullStream[byteIdx] >> bitPos) & 1;
+                                bitsVal = (bitsVal << 1) | bit;
+                                streamBitIdx++;
+                            }
+                        }
+
+                        // Embed into pixel channel
+                        pixels[i + c] = (pixels[i + c] & clearMask) | bitsVal;
+                    }
+
+                    // Force Alpha channel to 255 (Opaque) to avoid browser premultiplication distortion
+                    pixels[i + 3] = 255;
+                }
+
+                // Write modified pixels back to canvas
+                state.coverCtx.putImageData(imgData, 0, 0);
+
+                // 6. Export to lossless PNG Blob & setup Download
+                state.coverCanvas.toBlob((blob) => {
+                    if (state.encodedBlobUrl) URL.revokeObjectURL(state.encodedBlobUrl);
+                    state.encodedBlobUrl = URL.createObjectURL(blob);
+
+                    const finalFilename = generateStealthFilename();
+                    const link = document.getElementById('stego-download-link');
+                    link.href = state.encodedBlobUrl;
+                    link.download = finalFilename;
+
+                    document.getElementById('encode-result-card').classList.remove('hidden');
+                    showToast(`埋め込み完了: 「${finalFilename}」をダウンロード可能です`, 'success');
+
+                    // Compute PSNR Metrics
+                    calculateAndRenderPSNR(imgData);
+
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="fa-solid fa-shield-halved text-base"></i><span>データを暗号化 & 画像に埋め込む</span>`;
+                }, 'image/png');
+
+            } catch (err) {
+                console.error(err);
+                showToast(`埋め込みエラー: ${err.message}`, 'error');
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-shield-halved text-base"></i><span>データを暗号化 & 画像に埋め込む</span>`;
+            }
+        }
+
+        /* ==========================================================================
+           DECODING & EXTRACTION ENGINE
+           ========================================================================== */
+        function handleStegoSelect(e) {
+            const file = e.target.files[0];
+            if (file) loadStegoFile(file);
+        }
+
+        const stegoZone = document.getElementById('stego-dropzone');
+        stegoZone.addEventListener('dragover', (e) => { e.preventDefault(); stegoZone.classList.add('border-cyan-500'); });
+        stegoZone.addEventListener('dragleave', () => { stegoZone.classList.remove('border-cyan-500'); });
+        stegoZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            stegoZone.classList.remove('border-cyan-500');
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                loadStegoFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        function loadStegoFile(file) {
+            state.stegoFileName = file.name;
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                const img = new Image();
+                img.onload = function () {
+                    state.stegoImage = img;
+                    document.getElementById('stego-placeholder').classList.add('hidden');
+                    document.getElementById('stego-preview-box').classList.remove('hidden');
+                    document.getElementById('stego-img-element').src = event.target.result;
+                    document.getElementById('stego-file-specs').textContent = `${file.name} (${img.width}×${img.height})`;
+                    document.getElementById('decode-process-btn').disabled = false;
+                    showToast('解析用画像を読み込みました', 'info');
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function executeDecoding() {
+            const btn = document.getElementById('decode-process-btn');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>解析・復号中...</span>`;
+
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = state.stegoImage.width;
+                canvas.height = state.stegoImage.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(state.stegoImage, 0, 0);
+                const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const pixels = imgData.data;
+
+                // Read first 6 bytes using LSB=1 to detect Magic & LSB bit depth
+                let headerBytes = extractBitsFromPixels(pixels, 6 * 8, 1);
+                
+                // Validate Magic
+                if (headerBytes[0] !== MAGIC_HEADER[0] || headerBytes[1] !== MAGIC_HEADER[1] ||
+                    headerBytes[2] !== MAGIC_HEADER[2] || headerBytes[3] !== MAGIC_HEADER[3]) {
+                    throw new Error('有効なステガノグラフィーデータが検出されませんでした。');
+                }
+
+                const lsbBits = headerBytes[4];
+                const isEncrypted = headerBytes[5] === 1;
+
+                // Now read header with actual LSB bit depth
+                const isEncHeaderSize = 4 + 1 + 1 + (isEncrypted ? 16 + 12 : 0) + 2 + 4;
+                const fullHeaderBytes = extractBitsFromPixels(pixels, isEncHeaderSize * 8, lsbBits);
+
+                let offset = 6;
+                let salt = new Uint8Array(0);
+                let iv = new Uint8Array(0);
+
+                if (isEncrypted) {
+                    salt = fullHeaderBytes.slice(offset, offset + 16); offset += 16;
+                    iv = fullHeaderBytes.slice(offset, offset + 12); offset += 12;
+                }
+
+                const metaLen = (fullHeaderBytes[offset] << 8) | fullHeaderBytes[offset + 1]; offset += 2;
+                const payloadLen = ((fullHeaderBytes[offset] << 24) >>> 0) |
+                                   (fullHeaderBytes[offset + 1] << 16) |
+                                   (fullHeaderBytes[offset + 2] << 8) |
+                                   fullHeaderBytes[offset + 3]; offset += 4;
+
+                // Extract total message stream
+                const totalBytesToExtract = isEncHeaderSize + metaLen + payloadLen;
+                const completeStream = extractBitsFromPixels(pixels, totalBytesToExtract * 8, lsbBits);
+
+                const metaJsonBytes = completeStream.slice(isEncHeaderSize, isEncHeaderSize + metaLen);
+                const rawPayloadBytes = completeStream.slice(isEncHeaderSize + metaLen, totalBytesToExtract);
+
+                const metaObj = JSON.parse(new TextDecoder().decode(metaJsonBytes));
+
+                // Decrypt if encrypted
+                let decryptedBytes = rawPayloadBytes;
+                if (isEncrypted) {
+                    const passcode = document.getElementById('decode-passcode').value;
+                    if (!passcode) {
+                        throw new Error('復号用のパスフレーズが必要です。');
+                    }
+                    decryptedBytes = await decryptData(rawPayloadBytes, passcode, salt, iv);
+                }
+
+                // Render Decrypted Output in UI
+                renderDecryptedOutput(decryptedBytes, metaObj);
+                showToast('データの抽出・復号に成功しました！', 'success');
+
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-unlock-keyhole"></i><span>隠蔽データを抽出・復号化する</span>`;
+
+            } catch (err) {
+                console.error(err);
+                showToast(`復号失敗: ${err.message}`, 'error');
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-unlock-keyhole"></i><span>隠蔽データを抽出・復号化する</span>`;
+            }
+        }
+
+        function extractBitsFromPixels(pixels, totalBitsNeeded, lsbDepth) {
+            const resultBytes = new Uint8Array(Math.ceil(totalBitsNeeded / 8));
+            const bitMask = (1 << lsbDepth) - 1;
+
+            let bitAcc = 0;
+            let bitsInAcc = 0;
+            let byteOutIdx = 0;
+            let bitsExtracted = 0;
+
+            for (let i = 0; i < pixels.length; i += 4) {
+                if (bitsExtracted >= totalBitsNeeded) break;
+
+                for (let c = 0; c < 3; c++) {
+                    if (bitsExtracted >= totalBitsNeeded) break;
+
+                    const channelVal = pixels[i + c];
+                    const extractedBits = channelVal & bitMask;
+
+                    for (let b = lsbDepth - 1; b >= 0; b--) {
+                        if (bitsExtracted >= totalBitsNeeded) break;
+                        const singleBit = (extractedBits >> b) & 1;
+
+                        bitAcc = (bitAcc << 1) | singleBit;
+                        bitsInAcc++;
+                        bitsExtracted++;
+
+                        if (bitsInAcc === 8) {
+                            resultBytes[byteOutIdx++] = bitAcc;
+                            bitAcc = 0;
+                            bitsInAcc = 0;
+                        }
+                    }
+                }
+            }
+            return resultBytes;
+        }
+
+        function renderDecryptedOutput(bytes, meta) {
+            const container = document.getElementById('decoded-content-viewer');
+            const resultBox = document.getElementById('decode-result-box');
+            const typeBadge = document.getElementById('decoded-type-badge');
+            const downloadBtn = document.getElementById('decoded-download-btn');
+            const downloadLabel = document.getElementById('decoded-download-label');
+
+            resultBox.classList.remove('hidden');
+            container.innerHTML = '';
+
+            typeBadge.textContent = `${meta.mimeType || 'binary'} (${formatBytes(bytes.length)})`;
+
+            const blob = new Blob([bytes], { type: meta.mimeType || 'application/octet-stream' });
+            const blobUrl = URL.createObjectURL(blob);
+
+            downloadBtn.classList.remove('hidden');
+            downloadBtn.href = blobUrl;
+            downloadBtn.download = meta.filename || 'extracted_file';
+            downloadLabel.textContent = `「${meta.filename || 'extracted_file'}」を保存`;
+
+            if (meta.isText || meta.mimeType.startsWith('text/')) {
+                const text = new TextDecoder().decode(bytes);
+                container.innerHTML = `
+                    <div class="w-full space-y-2">
+                        <div class="flex justify-between items-center text-xs text-gray-400">
+                            <span>復号テキストメッセージ:</span>
+                            <button onclick="navigator.clipboard.writeText(\`${text.replace(/`/g, '\\`')}\`); showToast('コピーしました', 'info')" class="text-cyan-400 hover:underline">
+                                <i class="fa-solid fa-copy mr-1"></i>コピー
+                            </button>
+                        </div>
+                        <pre class="w-full bg-gray-900 p-3 rounded-lg text-xs font-mono text-cyan-300 whitespace-pre-wrap break-all max-h-60 overflow-y-auto border border-gray-800">${escapeHtml(text)}</pre>
+                    </div>
+                `;
+            } else if (meta.mimeType.startsWith('image/')) {
+                container.innerHTML = `<img src="${blobUrl}" class="max-h-64 object-contain rounded-lg border border-gray-800" alt="Extracted Image">`;
+            } else if (meta.mimeType.startsWith('audio/')) {
+                container.innerHTML = `<audio controls src="${blobUrl}" class="w-full max-w-md"></audio>`;
+            } else if (meta.mimeType.startsWith('video/')) {
+                container.innerHTML = `<video controls src="${blobUrl}" class="max-h-64 rounded-lg border border-gray-800"></video>`;
+            } else {
+                container.innerHTML = `
+                    <div class="text-center py-4 space-y-2">
+                        <i class="fa-solid fa-file-zipper text-3xl text-purple-400"></i>
+                        <p class="text-xs text-gray-300 font-mono">${meta.filename}</p>
+                        <p class="text-[11px] text-gray-500">直接プレビューに対応していないファイルタイプです。下のボタンから保存してください。</p>
+                    </div>
+                `;
+            }
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        /* ==========================================================================
+           TAB 3: PSNR & QUALITY INSPECTOR METRICS
+           ========================================================================== */
+        function calculateAndRenderPSNR(stegoImageData) {
+            if (!state.coverImage || !state.coverCtx) return;
+
+            const width = state.coverCanvas.width;
+            const height = state.coverCanvas.height;
+
+            // Get pristine cover image pixels
+            const origData = state.coverCtx.getImageData(0, 0, width, height).data;
+            const stegoData = stegoImageData.data;
+
+            let mseSum = 0;
+            let alteredPixels = 0;
+            const totalPixels = width * height;
+
+            // Prepare Diff Canvas
+            const diffCanvas = document.getElementById('diff-canvas');
+            diffCanvas.width = width;
+            diffCanvas.height = height;
+            const diffCtx = diffCanvas.getContext('2d');
+            const diffImgData = diffCtx.createImageData(width, height);
+            const diffPixels = diffImgData.data;
+
+            for (let i = 0; i < origData.length; i += 4) {
+                let pixelAltered = false;
+
+                for (let c = 0; c < 3; c++) {
+                    const diff = Math.abs(origData[i + c] - stegoData[i + c]);
+                    mseSum += diff * diff;
+
+                    if (diff > 0) {
+                        pixelAltered = true;
+                    }
+
+                    // Amplification x20 for visual diff map
+                    diffPixels[i + c] = Math.min(255, diff * 20);
+                }
+
+                diffPixels[i + 3] = 255; // Alpha
+
+                if (pixelAltered) alteredPixels++;
+            }
+
+            const mse = mseSum / (totalPixels * 3);
+            let psnr = 0;
+            if (mse === 0) {
+                psnr = Infinity;
+            } else {
+                psnr = 10 * Math.log10((255 * 255) / mse);
+            }
+
+            // Update UI metrics
+            document.getElementById('psnr-value').textContent = psnr === Infinity ? '∞ dB' : `${psnr.toFixed(2)} dB`;
+            document.getElementById('mse-value').textContent = mse.toFixed(4);
+
+            const ratio = ((alteredPixels / totalPixels) * 100).toFixed(2);
+            document.getElementById('diff-pixel-ratio').textContent = `${ratio} %`;
+            document.getElementById('diff-pixel-count').textContent = `${alteredPixels.toLocaleString()} / ${totalPixels.toLocaleString()} px`;
+
+            const bpp = (getPayloadByteCount() * 8 / totalPixels).toFixed(3);
+            document.getElementById('bpp-value').textContent = `${bpp} bpp`;
+
+            // Grade readout
+            const gradeElem = document.getElementById('psnr-grade');
+            if (psnr > 50 || psnr === Infinity) {
+                gradeElem.textContent = '最高画質 (人間の目で識別不可能)';
+                gradeElem.className = 'text-[10px] text-emerald-400 mt-0.5 block';
+            } else if (psnr > 40) {
+                gradeElem.textContent = '高画質 (極めて高品質)';
+                gradeElem.className = 'text-[10px] text-cyan-400 mt-0.5 block';
+            } else {
+                gradeElem.textContent = '中画質 (微細なノイズの可能性)';
+                gradeElem.className = 'text-[10px] text-amber-400 mt-0.5 block';
+            }
+
+            diffCtx.putImageData(diffImgData, 0, 0);
+        }
+
+        /* ==========================================================================
+           INITIALIZATION
+           ========================================================================== */
+        window.onload = function () {
+            updateFilenamePreview();
+            toggleEncryptInputs();
+        };
+    </script>
+</body>
+</html>
